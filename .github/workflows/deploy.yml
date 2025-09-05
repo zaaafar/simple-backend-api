@@ -1,0 +1,48 @@
+name: Deploy Backend API
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Deploy to VM
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            # Stop old server if running
+            pkill -f "node server.js" || true
+
+            # Create app folder if not exists
+            mkdir -p ~/app
+            cd ~/app
+
+            # Clean old files
+            rm -rf *
+
+            # Copy repo files
+            echo "${{ github.workspace }}"
+            cp -r $GITHUB_WORKSPACE/* .
+
+            # Install deps
+            npm install
+
+            # Run app (background)
+            nohup sudo node server.js > output.log 2>&1 &
