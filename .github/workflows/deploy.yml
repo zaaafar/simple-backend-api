@@ -17,32 +17,26 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install dependencies
+      - name: Install dependencies (to validate build)
         run: npm install
 
-      - name: Deploy to VM
+      - name: Copy files to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          source: "."
+          target: "~/app"
+
+      - name: Deploy on VM
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
-            # Stop old server if running
-            pkill -f "node server.js" || true
-
-            # Create app folder if not exists
-            mkdir -p ~/app
             cd ~/app
-
-            # Clean old files
-            rm -rf *
-
-            # Copy repo files
-            echo "${{ github.workspace }}"
-            cp -r $GITHUB_WORKSPACE/* .
-
-            # Install deps
             npm install
-
-            # Run app (background)
+            pkill -f "node server.js" || true
             nohup sudo node server.js > output.log 2>&1 &
