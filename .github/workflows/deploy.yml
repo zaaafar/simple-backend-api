@@ -20,15 +20,6 @@ jobs:
       - name: Install dependencies (to validate build)
         run: npm install
 
-      - name: Copy files to VM
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          source: "."
-          target: "~/app"
-
       - name: Deploy on VM
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -36,7 +27,21 @@ jobs:
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
+            # Go to app dir or create if missing
+            mkdir -p ~/app
             cd ~/app
+
+            # Pull latest code from repo
+            if [ -d ".git" ]; then
+              git reset --hard
+              git pull
+            else
+              git clone https://github.com/${{ github.repository }} .
+            fi
+
+            # Install dependencies
             npm install
+
+            # Restart server
             pkill -f "node server.js" || true
             nohup sudo node server.js > output.log 2>&1 &
